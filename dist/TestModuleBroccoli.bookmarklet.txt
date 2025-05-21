@@ -1,0 +1,1 @@
+javascript:(()%3D%3E%7Bfunction%20o(e)%7Bconsole.log(%22WebElementSelector%20framework%20activated%22)%3Blet%20l%3Ddocument.body%3Be(l)%7Dfunction%20t(e)%7Bconsole.log(%22TestModuleBroccoli%20engaged%22)%2Cconsole.log(%22Selected%20element%3A%22%2Ce)%7Do(t)%3B%7D)()%3B%0A
