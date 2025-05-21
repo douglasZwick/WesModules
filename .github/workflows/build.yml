@@ -1,0 +1,82 @@
+name: Build Bookmarklets
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out module repo
+      uses: actions/checkout@v4
+
+    - name: Parse build_list.config
+      id: config
+      run: |
+        echo "Reading build_list.config..."
+        src_root=$(grep '^src_root=' build_list.config | cut -d= -f2)
+        echo "src_root=$src_root" >> $GITHUB_OUTPUT
+
+        modules=()
+        while read -r line; do
+          [[ "$line" =~ ^#.*$ || -z "$line" || "$line" =~ ^src_root= ]] && continue
+          modules+=("$line")
+        done < build_list.config
+
+        echo "modules=${modules[*]}" >> $GITHUB_OUTPUT
+        echo "Found modules: ${modules[*]}"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install esbuild
+      run: npm install esbuild
+
+    - name: Build each module
+      run: |
+        src_root="${{ steps.config.outputs.src_root }}"
+        IFS=' ' read -r -a modules <<< "${{ steps.config.outputs.modules }}"
+
+        mkdir -p dist
+
+        for mod in "${modules[@]}"; do
+          echo "Building module: $mod"
+
+          module_dir="$src_root/$mod"
+          module_file="$module_dir/Module.js"
+          selector_url="https://raw.githubusercontent.com/douglasZwick/WebElementSelector/main/src/Selector.js"
+
+          # Check for required file
+          if [[ ! -f "$module_file" ]]; then
+            echo "❌ Skipping $mod: Module.js not found."
+            continue
+          fi
+
+          # Copy shared Main.js into module folder as Main.js
+          cp SharedMain.js "$module_dir/Main.js"
+
+          # Fetch Selector.js from WebElementSelector
+          curl -sSL "$selector_url" -o "$module_dir/Selector.js"
+
+          # Build and bundle
+          npx esbuild "$module_dir/Main.js" \
+            --bundle --minify \
+            --outfile="dist/$mod.raw.js"
+
+          echo -n "javascript:" > "dist/$mod.bookmarklet.txt"
+          node -e "process.stdout.write(encodeURIComponent(require('fs').readFileSync('dist/$mod.raw.js', 'utf8')))" >> "dist/$mod.bookmarklet.txt"
+
+          echo "✅ Finished building $mod"
+        done
+
+    - name: Commit and push built bookmarklets
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add dist/
+        git commit -m "Auto-build bookmarklets" || echo "No changes"
+        git push
