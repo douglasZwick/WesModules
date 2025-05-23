@@ -70,6 +70,10 @@ jobs:
             --bundle \
             --outfile="dist/$mod/$mod.raw.js"
 
+          # Create the loader bookmarklet
+          loader_url="https://douglasZwick.github.io/WesModules/dist/$mod/$mod.raw.js"
+          echo -n "javascript:(function(){var s=document.createElement('script');s.src='$loader_url';document.body.appendChild(s);})();" > "dist/$mod/$mod.bookmarklet.txt"
+
           # Clean up temporary files
           rm "$module_dir/Main.js" "$module_dir/Selector.js"
 
