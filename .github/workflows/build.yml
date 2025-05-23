@@ -1,4 +1,4 @@
-name: Build Bookmarklets
+name: Build Hosted Modules
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out module repo
+    - name: Check out code
       uses: actions/checkout@v4
 
     - name: Parse build_list.config
@@ -40,11 +40,8 @@ jobs:
 
     - name: Build each module
       run: |
-        set -e
         src_root="${{ steps.config.outputs.src_root }}"
         IFS=' ' read -r -a modules <<< "${{ steps.config.outputs.modules }}"
-
-        mkdir -p dist
 
         for mod in "${modules[@]}"; do
           echo "Building module: $mod"
@@ -65,25 +62,24 @@ jobs:
           # Fetch Selector.js from WebElementSelector
           curl -sSL "$selector_url" -o "$module_dir/Selector.js"
 
+          # Make the module-specific folder
+          mkdir -p dist/$mod
+
           # Build and bundle
           npx esbuild "$module_dir/Main.js" \
-            --bundle --minify --minify-identifiers \
-            --minify-syntax --minify-whitespace \
-            --outfile="dist/$mod.raw.js"
-
-          echo -n "javascript:" > "dist/$mod.bookmarklet.txt"
-          node -e "process.stdout.write(encodeURIComponent(require('fs').readFileSync('dist/$mod.raw.js', 'utf8')))" >> "dist/$mod.bookmarklet.txt"
+            --bundle \
+            --outfile="dist/$mod/$mod.raw.js"
 
           # Clean up temporary files
           rm "$module_dir/Main.js" "$module_dir/Selector.js"
 
-          echo "✅ Finished building $mod"
+          echo "✅ Finished building dist/$mod/$mod.js"
         done
 
-    - name: Commit and push built bookmarklets
+    - name: Commit and push built modules
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add dist/
-        git commit -m "Auto-build bookmarklets" || echo "No changes"
+        git commit -m "Auto-build hosted modules" || echo "No changes"
         git push
