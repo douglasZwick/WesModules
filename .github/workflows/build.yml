@@ -67,7 +67,8 @@ jobs:
 
           # Build and bundle
           npx esbuild "$module_dir/Main.js" \
-            --bundle --minify \
+            --bundle --minify --minify-identifiers \
+            --minify-syntax --minify-whitespace \
             --outfile="dist/$mod.raw.js"
 
           echo -n "javascript:" > "dist/$mod.bookmarklet.txt"
